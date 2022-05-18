@@ -4,7 +4,9 @@ Scan a host for open ports.
 
 ## Demo
 
-[![ASCII Demo](https://github.com/miraclx/xradar/raw/master/media/demo.gif)](https://asciinema.org/a/495524?autoplay=1 "Click to view ASCII")
+<a title="Click to view ASCII" href="https://asciinema.org/a/495524?autoplay=1">
+  <img width=40% src="https://github.com/miraclx/xradar/raw/master/media/demo.gif" alt="ASCII Demo">
+</a>
 
 ## Installation
 
