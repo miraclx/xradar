@@ -1,0 +1,19 @@
+[package]
+name = "xradar"
+version = "0.1.0"
+authors = ["Miraculous Owonubi <omiraculous@gmail.com>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/miraclx/xradar"
+description = "Scan a host for open ports"
+categories = ["command-line-utilities"]
+keywords = ["open", "port", "network"]
+rust-version = "1.56.0"
+
+[dependencies]
+clap = { version = "3.1.18", features = ["derive"] }
+anyhow = "1.0.57"
+
+[[bin]]
+name = "xr"
+path = "src/main.rs"
