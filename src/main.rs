@@ -13,7 +13,7 @@ mod cli;
 async fn main() -> anyhow::Result<()> {
     let args = cli::Args::parse();
 
-    let host = args.host.unwrap_or("localhost".to_string());
+    let host = Arc::new(args.host);
 
     let mut ports = args
         .port
@@ -40,8 +40,6 @@ async fn main() -> anyhow::Result<()> {
         tokio::time::Duration::from_millis(timeout).as_secs_f32(),
     );
     eprintln!("Retries: {}", retries);
-
-    let host = Arc::new(host);
 
     let mut ports = stream::iter(ports)
         .map(move |mut port| {
@@ -71,16 +69,16 @@ async fn main() -> anyhow::Result<()> {
         println!("┌───────┬────────┐");
         println!(
             "│  {} │ {} │",
-            args.colors.paint("Port", "\x1b[1m"),
-            args.colors.paint("Status", "\x1b[1m")
+            args.color.paint("Port", "\x1b[1m"),
+            args.color.paint("Status", "\x1b[1m")
         );
         println!("├───────┼────────┤");
         while let Some(port) = ports.next().await {
             if args.all || matches!(port.stat, Status::Open | Status::TimedOut) {
                 println!(
                     "│ {} │ {}│",
-                    args.colors.paint(&format!("{:>5}", port.num), "\x1b[1m"),
-                    port.stat.display(7, args.colors)
+                    args.color.paint(&format!("{:>5}", port.num), "\x1b[1m"),
+                    port.stat.display(7, args.color)
                 );
             }
         }
@@ -91,13 +89,13 @@ async fn main() -> anyhow::Result<()> {
             if args.all || matches!(port.stat, Status::Open | Status::TimedOut) {
                 println!(
                     " {} ({})",
-                    args.colors.paint(&port.num.to_string(), "\x1b[1m"),
-                    port.stat.display(0, args.colors)
+                    args.color.paint(&port.num.to_string(), "\x1b[1m"),
+                    port.stat.display(0, args.color)
                 );
                 if let Some(data) = port.meta {
                     let report = match data {
                         Ok(Ok(stat)) if stat.is_empty() => {
-                            format!("({})", args.colors.paint("no data", "\x1b[33m"))
+                            format!("({})", args.color.paint("no data", "\x1b[33m"))
                         }
                         Ok(Ok(stat)) => stat,
                         Ok(Err((code, err))) if err.is_empty() => {
@@ -107,18 +105,18 @@ async fn main() -> anyhow::Result<()> {
                             format!(
                                 "inspection failed with exit code {}: {}",
                                 code,
-                                args.colors.paint(&err, "\x1b[33m")
+                                args.color.paint(&err, "\x1b[33m")
                             )
                         }
                         Err(err) => format!(
                             "inspection failed: {}",
-                            args.colors.paint(&err.to_string(), "\x1b[31m")
+                            args.color.paint(&err.to_string(), "\x1b[31m")
                         ),
                     };
                     for line in report.lines() {
                         println!(
                             "   {} {}",
-                            args.colors.paint("│", "\x1b[1m\x1b[38;5;243m"),
+                            args.color.paint("│", "\x1b[1m\x1b[38;5;243m"),
                             line
                         );
                     }
