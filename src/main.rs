@@ -57,9 +57,8 @@ async fn main() -> anyhow::Result<()> {
     println!("Host   : {}", host);
     println!("Threads: {}", threads);
     println!(
-        "Timeout: {}s ({}ms)",
+        "Timeout: {}s",
         tokio::time::Duration::from_millis(timeout).as_secs_f32(),
-        timeout
     );
     println!("Retries: {}", retries);
 
