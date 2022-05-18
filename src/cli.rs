@@ -18,22 +18,22 @@ pub struct Args {
     )]
     pub port: Vec<CliPort>,
     /// Port test method to use.
-    #[clap(arg_enum, short = 'm', default_value_t = Method::Fast)]
+    #[clap(arg_enum, short = 'm', long, default_value_t = Method::Fast)]
     pub method: Method,
     /// Show status of all ports, open or closed. (defaults to false)
-    #[clap(short = 'a')]
+    #[clap(short = 'a', long)]
     pub all: bool,
-    /// Timeout for port checks (ms). (defaults to 2000ms)
-    #[clap(short = 't', default_value = "2000")]
+    /// Timeout for port checks (ms).
+    #[clap(short = 't', long, default_value = "2000")]
     pub timeout: NonZeroU64,
-    /// Number of retries per port, on timeout. (defaults to 2)
-    #[clap(short = 'r', default_value = "2")]
+    /// Number of retries per port, on timeout.
+    #[clap(short = 'r', long, default_value = "2")]
     pub retries: NonZeroUsize,
     /// The number of threads to use. (defaults to the number of CPUs)
-    #[clap(short = 'n')]
+    #[clap(short = 'n', long)]
     pub threads: Option<NonZeroUsize>,
     /// Be verbose. Query information about each port. (defaults to false)
-    #[clap(short = 'v')]
+    #[clap(short = 'v', long)]
     pub verbose: bool,
 }
 
