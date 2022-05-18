@@ -32,14 +32,43 @@ pub struct Args {
     /// Inspect ports. (defaults to false)
     #[clap(short = 'i', long)]
     pub inspect: bool,
+    /// Whether or not to use colors. (defaults to yes, unless output is piped)
+    #[clap(arg_enum, short = 'c', long, default_value_t = CliColors::default())]
+    pub colors: CliColors,
 }
 
-#[derive(ArgEnum, Eq, Clone, Debug, PartialEq)]
-pub enum Method {
-    #[clap(alias("f"))]
-    Fast,
-    #[clap(alias("s"))]
-    Slow,
+#[derive(ArgEnum, Eq, Copy, Clone, Debug, PartialEq)]
+pub enum CliColors {
+    #[clap(alias("a"))]
+    Always,
+    #[clap(alias("y"))]
+    Yes,
+    #[clap(alias("n"))]
+    No,
+}
+
+impl Default for CliColors {
+    fn default() -> Self {
+        if atty::is(atty::Stream::Stdout) {
+            return CliColors::Yes;
+        }
+        CliColors::No
+    }
+}
+
+impl CliColors {
+    pub fn paint(&self, msg: &str, color: &str) -> String {
+        let should_paint = match self {
+            CliColors::Always => true,
+            CliColors::Yes => atty::is(atty::Stream::Stdout),
+            CliColors::No => false,
+        };
+        if should_paint {
+            format!("{}{}\x1b[0m", color, msg)
+        } else {
+            msg.to_string()
+        }
+    }
 }
 
 #[derive(Debug)]

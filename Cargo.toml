@@ -11,6 +11,7 @@ keywords = ["open", "port", "network"]
 rust-version = "1.56.0"
 
 [dependencies]
+atty = "0.2.14"
 clap = { version = "3.1.18", features = ["derive"] }
 tokio = { version = "1", features = ["rt", "net", "time", "macros", "process", "rt-multi-thread"] }
 anyhow = "1.0.57"

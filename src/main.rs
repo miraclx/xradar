@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::fmt;
 use std::sync::Arc;
 
 use clap::Parser;
@@ -9,30 +8,6 @@ use tokio::process::Command;
 use tokio::time;
 
 mod cli;
-
-#[derive(Debug)]
-pub struct Port {
-    num: u16,
-    meta: Option<anyhow::Result<Result<String, String>>>,
-    stat: Status,
-}
-
-#[derive(Debug)]
-pub enum Status {
-    Open,
-    Closed,
-    TimedOut,
-}
-
-impl fmt::Display for Status {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Status::Open => f.pad("open"),
-            Status::Closed => f.pad("closed"),
-            Status::TimedOut => f.pad("timeout"),
-        }
-    }
-}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -94,11 +69,19 @@ async fn main() -> anyhow::Result<()> {
 
     if !args.inspect {
         println!("┌───────┬────────┐");
-        println!("│  Port │ Status │");
+        println!(
+            "│  {} │ {} │",
+            args.colors.paint("Port", "\x1b[1m"),
+            args.colors.paint("Status", "\x1b[1m")
+        );
         println!("├───────┼────────┤");
         while let Some(port) = ports.next().await {
             if args.all || matches!(port.stat, Status::Open | Status::TimedOut) {
-                println!("│ {:>5} │ {:^7}│", port.num, port.stat);
+                println!(
+                    "│ {} │ {}│",
+                    args.colors.paint(&format!("{:>5}", port.num), "\x1b[1m"),
+                    port.stat.display(7, args.colors)
+                );
             }
         }
         println!("└───────┴────────┘");
@@ -106,19 +89,38 @@ async fn main() -> anyhow::Result<()> {
         println!("----------------");
         while let Some(port) = ports.next().await {
             if args.all || matches!(port.stat, Status::Open | Status::TimedOut) {
-                println!(" {} ({})", port.num, port.stat);
+                println!(
+                    " {} ({})",
+                    args.colors.paint(&port.num.to_string(), "\x1b[1m"),
+                    port.stat.display(0, args.colors)
+                );
                 if let Some(data) = port.meta {
                     let report = match data {
-                        Ok(Ok(stat)) if stat.is_empty() => "(no data)".to_string(),
-                        Ok(Ok(stat)) => stat,
-                        Ok(Err(err)) if err.is_empty() => {
-                            "(inspection failed, no data)".to_string()
+                        Ok(Ok(stat)) if stat.is_empty() => {
+                            format!("({})", args.colors.paint("no data", "\x1b[33m"))
                         }
-                        Ok(Err(err)) => err,
-                        Err(err) => format!("{}", err),
+                        Ok(Ok(stat)) => stat,
+                        Ok(Err((code, err))) if err.is_empty() => {
+                            format!("inspection failed with exit code {}", code)
+                        }
+                        Ok(Err((code, err))) => {
+                            format!(
+                                "inspection failed with exit code {}: {}",
+                                code,
+                                args.colors.paint(&err, "\x1b[33m")
+                            )
+                        }
+                        Err(err) => format!(
+                            "inspection failed: {}",
+                            args.colors.paint(&err.to_string(), "\x1b[31m")
+                        ),
                     };
                     for line in report.lines() {
-                        println!("   │ {}", line);
+                        println!(
+                            "   {} {}",
+                            args.colors.paint("│", "\x1b[1m\x1b[38;5;243m"),
+                            line
+                        );
                     }
                 }
             }
@@ -129,13 +131,41 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Debug)]
+pub struct Port {
+    num: u16,
+    meta: Option<anyhow::Result<Result<String, (i32, String)>>>,
+    stat: Status,
+}
+
+#[derive(Debug)]
+pub enum Status {
+    Open,
+    Closed,
+    TimedOut,
+}
+
+impl Status {
+    fn display(&self, pad: usize, colors: cli::CliColors) -> String {
+        match self {
+            Status::Open => colors.paint(&format!("{:^pad$}", "open", pad = pad), "\x1b[32m"),
+            Status::Closed => {
+                colors.paint(&format!("{:^pad$}", "closed", pad = pad), "\x1b[38;5;249m")
+            }
+            Status::TimedOut => {
+                colors.paint(&format!("{:^pad$}", "timeout", pad = pad), "\x1b[33m")
+            }
+        }
+    }
+}
+
 #[cfg(target_family = "windows")]
 async fn port_stat(port: u16) -> anyhow::Result<String> {
     todo!("windows?")
 }
 
 #[cfg(target_family = "unix")]
-async fn port_stat(port: u16) -> anyhow::Result<Result<String, String>> {
+async fn port_stat(port: u16) -> anyhow::Result<Result<String, (i32, String)>> {
     let output = Command::new("lsof")
         .arg("-i")
         .arg(format!("tcp:{}", port))
@@ -147,10 +177,13 @@ async fn port_stat(port: u16) -> anyhow::Result<Result<String, String>> {
         .output()
         .await?;
     if output.status.success() {
-        return Ok(Ok(String::from_utf8(output.stdout)?));
+        return Ok(Ok(String::from_utf8(output.stdout)?.trim().to_owned()));
     } else {
         match output.status.code() {
-            Some(_) => Ok(Err(String::from_utf8(output.stderr)?)),
+            Some(code) => Ok(Err((
+                code,
+                String::from_utf8(output.stderr)?.trim().to_owned(),
+            ))),
             None => anyhow::bail!("process terminated by signal"),
         }
     }

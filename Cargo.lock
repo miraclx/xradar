@@ -500,6 +500,7 @@ name = "xradar"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "atty",
  "clap",
  "futures",
  "tokio",
