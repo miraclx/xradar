@@ -22,7 +22,7 @@ pub struct Args {
     #[clap(short = 'a', long)]
     pub all: bool,
     /// Timeout for port checks (ms).
-    #[clap(short = 't', long, default_value = "2000")]
+    #[clap(short = 't', long, default_value = "5000")]
     pub timeout: NonZeroU64,
     /// Number of retries per port
     #[clap(short = 'r', long, default_value = "2")]
