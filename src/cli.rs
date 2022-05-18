@@ -1,4 +1,4 @@
-use std::num::{NonZeroU16, NonZeroUsize};
+use std::num::{NonZeroU16, NonZeroU64, NonZeroUsize};
 use std::str::FromStr;
 
 use clap::{ArgEnum, Parser};
@@ -23,6 +23,9 @@ pub struct Args {
     /// Show status of all ports, open or closed. (defaults to false)
     #[clap(short = 'a')]
     pub all: bool,
+    /// Timeout for port checks (ms). (defaults to 2000ms)
+    #[clap(short = 't', default_value = "2000")]
+    pub timeout: NonZeroU64,
     /// The number of threads to use. (defaults to the number of CPUs)
     #[clap(short = 'n')]
     pub threads: Option<NonZeroUsize>,
@@ -63,13 +66,13 @@ impl FromStr for CliPort {
             (l..=r)
                 .map(|port| super::Port {
                     num: port,
-                    open: false,
+                    status: super::Status::Closed,
                 })
                 .collect::<Vec<_>>()
         } else {
             vec![super::Port {
                 num: s.parse::<NonZeroU16>().map_err(|e| e.to_string())?.get(),
-                open: false,
+                status: super::Status::Closed,
             }]
         };
         Ok(Self(ports))

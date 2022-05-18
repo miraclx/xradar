@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::fmt;
 
 use clap::Parser;
 use futures::stream::StreamExt;
@@ -9,7 +10,24 @@ mod methods;
 #[derive(Eq, Ord, Hash, Debug, PartialEq, PartialOrd)]
 pub struct Port {
     num: u16,
-    open: bool,
+    status: Status,
+}
+
+#[derive(Eq, Ord, Hash, Debug, PartialEq, PartialOrd)]
+pub enum Status {
+    Open,
+    Closed,
+    TimedOut,
+}
+
+impl fmt::Display for Status {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Status::Open => f.pad("open"),
+            Status::Closed => f.pad("closed"),
+            Status::TimedOut => f.pad("timeout"),
+        }
+    }
 }
 
 #[tokio::main]
@@ -33,13 +51,20 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or(std::thread::available_parallelism()?)
         .get();
 
+    let timeout = args.timeout.get();
+
     println!("Host   : {}", host);
     println!("Threads: {}", threads);
+    println!(
+        "Timeout: {}s ({}ms)",
+        tokio::time::Duration::from_millis(timeout).as_secs_f32(),
+        timeout
+    );
 
     let mut ports = match args.method {
         cli::Method::Slow => {
             println!("Method : Slow");
-            methods::client::run(host, ports, threads).await
+            methods::client::run(host, ports, threads, timeout).await
         }
         cli::Method::Fast => {
             println!("Method : Fast");
@@ -52,24 +77,16 @@ async fn main() -> anyhow::Result<()> {
         println!("│  Port │ Status │");
         println!("├───────┼────────┤");
         while let Some(port) = ports.next().await {
-            if args.all || port.open {
-                println!(
-                    "│ {:>5} │ {:^6} │",
-                    port.num,
-                    if port.open { "open" } else { "closed" }
-                );
+            if args.all || matches!(port.status, Status::Open | Status::TimedOut) {
+                println!("│ {:>5} │ {:^7}│", port.num, port.status);
             }
         }
         println!("└───────┴────────┘");
     } else {
         println!("----------------");
         while let Some(port) = ports.next().await {
-            if args.all || port.open {
-                println!(
-                    " {:>5} | {}",
-                    port.num,
-                    if port.open { "open" } else { "closed" }
-                );
+            if args.all || matches!(port.status, Status::Open | Status::TimedOut) {
+                println!(" {:>5} | {}", port.num, port.status);
             }
         }
     }

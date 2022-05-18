@@ -1,18 +1,33 @@
 use std::sync::Arc;
 
-use futures::{stream, Stream, StreamExt};
+use futures::stream::{self, BoxStream, StreamExt};
 use tokio::net::TcpStream;
+use tokio::time;
 
-use crate::Port;
+use crate::{Port, Status};
 
-pub async fn run<'a>(host: String, ports: Vec<Port>, threads: usize) -> impl Stream<Item = Port> {
+pub async fn run(
+    host: String,
+    ports: Vec<Port>,
+    threads: usize,
+    timeout: u64,
+) -> BoxStream<'static, Port> {
     let host = Arc::new(host);
     let tasks = stream::iter(ports).map(move |mut port| {
         let host = host.clone();
         async move {
-            port.open |= matches!(TcpStream::connect((host.as_str(), port.num)).await, Ok(_));
+            tokio::select! {
+                _ = async {
+                    if let Ok(_) = TcpStream::connect((host.as_str(), port.num)).await {
+                        port.status = Status::Open;
+                    }
+                } => {},
+                _ = time::sleep(time::Duration::from_millis(timeout)) => {
+                    port.status = Status::TimedOut;
+                },
+            };
             port
         }
     });
-    tasks.buffer_unordered(threads)
+    Box::pin(tasks.buffer_unordered(threads))
 }
