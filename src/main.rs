@@ -5,6 +5,7 @@ use std::sync::Arc;
 use clap::Parser;
 use futures::stream::{self, StreamExt};
 use tokio::net::TcpStream;
+use tokio::process::Command;
 use tokio::time;
 
 mod cli;
@@ -12,7 +13,8 @@ mod cli;
 #[derive(Debug)]
 pub struct Port {
     num: u16,
-    status: Status,
+    meta: Option<anyhow::Result<Result<String, String>>>,
+    stat: Status,
 }
 
 #[derive(Debug)]
@@ -74,11 +76,14 @@ async fn main() -> anyhow::Result<()> {
                     tokio::select! {
                         _ = async {
                             if let Ok(_) = TcpStream::connect((host.as_str(), port.num)).await {
-                                port.status = Status::Open;
+                                port.stat = Status::Open;
+                                if args.inspect {
+                                    port.meta = Some(port_stat(port.num).await);
+                                }
                             }
                         } => break,
                         _ = time::sleep(time::Duration::from_millis(timeout)) => {
-                            port.status = Status::TimedOut;
+                            port.stat = Status::TimedOut;
                         },
                     };
                 }
@@ -87,24 +92,66 @@ async fn main() -> anyhow::Result<()> {
         })
         .buffer_unordered(threads);
 
-    if !args.verbose {
+    if !args.inspect {
         println!("┌───────┬────────┐");
         println!("│  Port │ Status │");
         println!("├───────┼────────┤");
         while let Some(port) = ports.next().await {
-            if args.all || matches!(port.status, Status::Open | Status::TimedOut) {
-                println!("│ {:>5} │ {:^7}│", port.num, port.status);
+            if args.all || matches!(port.stat, Status::Open | Status::TimedOut) {
+                println!("│ {:>5} │ {:^7}│", port.num, port.stat);
             }
         }
         println!("└───────┴────────┘");
     } else {
         println!("----------------");
         while let Some(port) = ports.next().await {
-            if args.all || matches!(port.status, Status::Open | Status::TimedOut) {
-                println!(" {:>5} | {}", port.num, port.status);
+            if args.all || matches!(port.stat, Status::Open | Status::TimedOut) {
+                println!(" {} ({})", port.num, port.stat);
+                if let Some(data) = port.meta {
+                    let report = match data {
+                        Ok(Ok(stat)) if stat.is_empty() => "(no data)".to_string(),
+                        Ok(Ok(stat)) => stat,
+                        Ok(Err(err)) if err.is_empty() => {
+                            "(inspection failed, no data)".to_string()
+                        }
+                        Ok(Err(err)) => err,
+                        Err(err) => format!("{}", err),
+                    };
+                    for line in report.lines() {
+                        println!("   │ {}", line);
+                    }
+                }
             }
         }
+        println!("----------------");
     }
 
     Ok(())
+}
+
+#[cfg(target_family = "windows")]
+async fn port_stat(port: u16) -> anyhow::Result<String> {
+    todo!("windows?")
+}
+
+#[cfg(target_family = "unix")]
+async fn port_stat(port: u16) -> anyhow::Result<Result<String, String>> {
+    let output = Command::new("lsof")
+        .arg("-i")
+        .arg(format!("tcp:{}", port))
+        .arg("-s")
+        .arg("tcp:listen")
+        .arg("-P")
+        .arg("-n")
+        .kill_on_drop(true)
+        .output()
+        .await?;
+    if output.status.success() {
+        return Ok(Ok(String::from_utf8(output.stdout)?));
+    } else {
+        match output.status.code() {
+            Some(_) => Ok(Err(String::from_utf8(output.stderr)?)),
+            None => anyhow::bail!("process terminated by signal"),
+        }
+    }
 }

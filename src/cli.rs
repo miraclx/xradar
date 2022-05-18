@@ -29,9 +29,9 @@ pub struct Args {
     /// The number of threads to use. (defaults to the number of CPUs)
     #[clap(short = 'n', long)]
     pub threads: Option<NonZeroUsize>,
-    /// Be verbose. Query information about each port. (defaults to false)
-    #[clap(short = 'v', long)]
-    pub verbose: bool,
+    /// Inspect ports. (defaults to false)
+    #[clap(short = 'i', long)]
+    pub inspect: bool,
 }
 
 #[derive(ArgEnum, Eq, Clone, Debug, PartialEq)]
@@ -66,13 +66,15 @@ impl FromStr for CliPort {
             (l..=r)
                 .map(|port| super::Port {
                     num: port,
-                    status: super::Status::Closed,
+                    stat: super::Status::Closed,
+                    meta: None,
                 })
                 .collect::<Vec<_>>()
         } else {
             vec![super::Port {
                 num: s.parse::<NonZeroU16>().map_err(|e| e.to_string())?.get(),
-                status: super::Status::Closed,
+                stat: super::Status::Closed,
+                meta: None,
             }]
         };
         Ok(Self(ports))
