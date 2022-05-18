@@ -30,7 +30,7 @@ pub struct Args {
     /// Set the number of threads to use (defaults to the number of available CPU cores)
     #[clap(short = 'j', long, name = "NUM")]
     pub threads: Option<NonZeroUsize>,
-    /// Inspect ports, showing extended information, if any (defaults to false)
+    /// Inspect local ports, showing extended information, if any (defaults to false)
     #[clap(short = 'i', long)]
     pub inspect: bool,
     /// Specify when to use colored output

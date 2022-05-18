@@ -15,6 +15,10 @@ async fn main() -> anyhow::Result<()> {
 
     let host = Arc::new(args.host);
 
+    if args.inspect && *host != "localhost" {
+        anyhow::bail!("--inspect is only supported for localhost");
+    }
+
     let mut ports = args
         .port
         .into_iter()
