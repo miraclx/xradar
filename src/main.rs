@@ -12,7 +12,11 @@ struct CLIArgs {
     /// An optional, non-zero port number to check. (defaults to scanning all ports)
     ///
     /// Format: `80`, `8000..8888`, `666,777,888,999`.
-    #[clap(multiple_occurrences = true, use_value_delimiter = true)]
+    #[clap(
+        multiple_occurrences = true,
+        use_value_delimiter = true,
+        default_value = "-"
+    )]
     port: Vec<CliPort>,
     /// Port test method to use.
     #[clap(arg_enum, short = 'm', default_value_t = Method::Fast)]
