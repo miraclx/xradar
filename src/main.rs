@@ -9,13 +9,13 @@ use tokio::time;
 
 mod cli;
 
-#[derive(Eq, Ord, Hash, Debug, PartialEq, PartialOrd)]
+#[derive(Debug)]
 pub struct Port {
     num: u16,
     status: Status,
 }
 
-#[derive(Eq, Ord, Hash, Debug, PartialEq, PartialOrd)]
+#[derive(Debug)]
 pub enum Status {
     Open,
     Closed,
