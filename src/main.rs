@@ -3,6 +3,9 @@ use std::num::{NonZeroU16, NonZeroUsize};
 use std::str::FromStr;
 
 use clap::{ArgEnum, Parser};
+use futures::stream::StreamExt;
+
+mod methods;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about)]
@@ -21,9 +24,15 @@ struct CLIArgs {
     /// Port test method to use.
     #[clap(arg_enum, short = 'm', default_value_t = Method::Fast)]
     method: Method,
+    /// Show status of all ports, open or closed. (defaults to false)
+    #[clap(short = 'a')]
+    all: bool,
     /// The number of threads to use. (defaults to the number of CPUs)
     #[clap(short = 'n')]
     threads: Option<NonZeroUsize>,
+    /// Be verbose. Query information about each port. (defaults to false)
+    #[clap(short = 'v')]
+    verbose: bool,
 }
 
 #[derive(ArgEnum, Eq, Clone, Debug, PartialEq)]
@@ -35,8 +44,8 @@ enum Method {
 }
 
 #[derive(Eq, Ord, Hash, Debug, PartialEq, PartialOrd)]
-struct Port {
-    port: u16,
+pub struct Port {
+    num: u16,
     open: bool,
 }
 
@@ -62,11 +71,14 @@ impl FromStr for CliPort {
             };
 
             (l..=r)
-                .map(|port| Port { port, open: false })
+                .map(|port| Port {
+                    num: port,
+                    open: false,
+                })
                 .collect::<Vec<_>>()
         } else {
             vec![Port {
-                port: s.parse::<NonZeroU16>().map_err(|e| e.to_string())?.get(),
+                num: s.parse::<NonZeroU16>().map_err(|e| e.to_string())?.get(),
                 open: false,
             }]
         };
@@ -74,13 +86,11 @@ impl FromStr for CliPort {
     }
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let args = CLIArgs::parse();
 
-    println!(
-        "Host: {}",
-        args.host.as_ref().unwrap_or(&"localhost".to_string())
-    );
+    let host = args.host.unwrap_or("localhost".to_string());
 
     let mut ports = args
         .port
@@ -90,15 +100,53 @@ fn main() -> anyhow::Result<()> {
         .collect::<Vec<_>>();
 
     let mut uniques = HashSet::new();
-    ports.retain(|p| uniques.insert(p.port));
-
-    println!("Ports: {:#?}", ports);
+    ports.retain(|p| uniques.insert(p.num));
 
     let threads = args
         .threads
-        .unwrap_or(std::thread::available_parallelism()?);
+        .unwrap_or(std::thread::available_parallelism()?)
+        .get();
 
+    println!("Host   : {}", host);
     println!("Threads: {}", threads);
+
+    let mut ports = match args.method {
+        Method::Slow => {
+            println!("Method : Slow");
+            methods::client::run(host, ports, threads).await
+        }
+        Method::Fast => {
+            println!("Method : Fast");
+            todo!()
+            // methods::server::run(args.host, ports, threads);
+        }
+    };
+    if !args.verbose {
+        println!("┌───────┬────────┐");
+        println!("│  Port │ Status │");
+        println!("├───────┼────────┤");
+        while let Some(port) = ports.next().await {
+            if args.all || port.open {
+                println!(
+                    "│ {:>5} │ {:^6} │",
+                    port.num,
+                    if port.open { "open" } else { "closed" }
+                );
+            }
+        }
+        println!("└───────┴────────┘");
+    } else {
+        println!("----------------");
+        while let Some(port) = ports.next().await {
+            if args.all || port.open {
+                println!(
+                    " {:>5} | {}",
+                    port.num,
+                    if port.open { "open" } else { "closed" }
+                );
+            }
+        }
+    }
 
     Ok(())
 }
