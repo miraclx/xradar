@@ -33,13 +33,15 @@ async fn main() -> anyhow::Result<()> {
     let retries = args.retries.get();
     let timeout = args.timeout.get();
 
-    eprintln!("Host   : {}", host);
-    eprintln!("Threads: {}", threads);
-    eprintln!(
-        "Timeout: {}s",
-        tokio::time::Duration::from_millis(timeout).as_secs_f32(),
-    );
-    eprintln!("Retries: {}", retries);
+    if args.verbose {
+        eprintln!("Host   : {}", host);
+        eprintln!("Threads: {}", threads);
+        eprintln!(
+            "Timeout: {}s",
+            tokio::time::Duration::from_millis(timeout).as_secs_f32(),
+        );
+        eprintln!("Retries: {}", retries);
+    }
 
     let mut ports = stream::iter(ports)
         .map(move |mut port| {

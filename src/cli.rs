@@ -38,6 +38,9 @@ pub struct Args {
     /// Defaults to true if an interactive terminal is detected
     #[clap(arg_enum, short = 'c', long, default_value_t = CliColors::Auto)]
     pub color: CliColors,
+    /// Use verbose output
+    #[clap(short = 'v', long)]
+    pub verbose: bool,
 }
 
 #[derive(ArgEnum, Eq, Copy, Clone, Debug, PartialEq)]
