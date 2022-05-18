@@ -11,21 +11,24 @@ pub async fn run(
     ports: Vec<Port>,
     threads: usize,
     timeout: u64,
+    retries: usize,
 ) -> BoxStream<'static, Port> {
     let host = Arc::new(host);
     let tasks = stream::iter(ports).map(move |mut port| {
         let host = host.clone();
         async move {
-            tokio::select! {
-                _ = async {
-                    if let Ok(_) = TcpStream::connect((host.as_str(), port.num)).await {
-                        port.status = Status::Open;
-                    }
-                } => {},
-                _ = time::sleep(time::Duration::from_millis(timeout)) => {
-                    port.status = Status::TimedOut;
-                },
-            };
+            for _ in 1..=retries {
+                tokio::select! {
+                    _ = async {
+                        if let Ok(_) = TcpStream::connect((host.as_str(), port.num)).await {
+                            port.status = Status::Open;
+                        }
+                    } => break,
+                    _ = time::sleep(time::Duration::from_millis(timeout)) => {
+                        port.status = Status::TimedOut;
+                    },
+                };
+            }
             port
         }
     });

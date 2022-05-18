@@ -26,6 +26,9 @@ pub struct Args {
     /// Timeout for port checks (ms). (defaults to 2000ms)
     #[clap(short = 't', default_value = "2000")]
     pub timeout: NonZeroU64,
+    /// Number of retries per port, on timeout. (defaults to 2)
+    #[clap(short = 'r', default_value = "2")]
+    pub retries: NonZeroUsize,
     /// The number of threads to use. (defaults to the number of CPUs)
     #[clap(short = 'n')]
     pub threads: Option<NonZeroUsize>,

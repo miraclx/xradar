@@ -51,6 +51,7 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or(std::thread::available_parallelism()?)
         .get();
 
+    let retries = args.retries.get();
     let timeout = args.timeout.get();
 
     println!("Host   : {}", host);
@@ -60,11 +61,12 @@ async fn main() -> anyhow::Result<()> {
         tokio::time::Duration::from_millis(timeout).as_secs_f32(),
         timeout
     );
+    println!("Retries: {}", retries);
 
     let mut ports = match args.method {
         cli::Method::Slow => {
             println!("Method : Slow");
-            methods::client::run(host, ports, threads, timeout).await
+            methods::client::run(host, ports, threads, timeout, retries).await
         }
         cli::Method::Fast => {
             println!("Method : Fast");
