@@ -2,6 +2,10 @@
 
 Scan a host for open ports.
 
+## Demo
+
+[![ASCII Demo](https://github.com/miraclx/xradar/raw/master/media/demo.gif)](https://asciinema.org/a/495524?autoplay=1 "Click to view ASCII")
+
 ## Installation
 
 First, install Rust and Cargo. See <https://rustup.rs/>.
