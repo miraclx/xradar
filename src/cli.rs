@@ -17,9 +17,6 @@ pub struct Args {
         default_value = "-"
     )]
     pub port: Vec<CliPort>,
-    /// Port test method to use.
-    #[clap(arg_enum, short = 'm', long, default_value_t = Method::Fast)]
-    pub method: Method,
     /// Show status of all ports, open or closed. (defaults to false)
     #[clap(short = 'a', long)]
     pub all: bool,

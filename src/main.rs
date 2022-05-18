@@ -1,11 +1,13 @@
 use std::collections::HashSet;
 use std::fmt;
+use std::sync::Arc;
 
 use clap::Parser;
-use futures::stream::StreamExt;
+use futures::stream::{self, StreamExt};
+use tokio::net::TcpStream;
+use tokio::time;
 
 mod cli;
-mod methods;
 
 #[derive(Eq, Ord, Hash, Debug, PartialEq, PartialOrd)]
 pub struct Port {
@@ -62,17 +64,30 @@ async fn main() -> anyhow::Result<()> {
     );
     println!("Retries: {}", retries);
 
-    let mut ports = match args.method {
-        cli::Method::Slow => {
-            println!("Method : Slow");
-            methods::client::run(host, ports, threads, timeout, retries).await
-        }
-        cli::Method::Fast => {
-            println!("Method : Fast");
-            todo!()
-            // methods::server::run(args.host, ports, threads);
-        }
-    };
+    let host = Arc::new(host);
+
+    let mut ports = stream::iter(ports)
+        .map(move |mut port| {
+            let host = host.clone();
+
+            async move {
+                for _ in 1..=retries {
+                    tokio::select! {
+                        _ = async {
+                            if let Ok(_) = TcpStream::connect((host.as_str(), port.num)).await {
+                                port.status = Status::Open;
+                            }
+                        } => break,
+                        _ = time::sleep(time::Duration::from_millis(timeout)) => {
+                            port.status = Status::TimedOut;
+                        },
+                    };
+                }
+                port
+            }
+        })
+        .buffer_unordered(threads);
+
     if !args.verbose {
         println!("┌───────┬────────┐");
         println!("│  Port │ Status │");
