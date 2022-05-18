@@ -56,20 +56,19 @@ async fn main() -> anyhow::Result<()> {
     let retries = args.retries.get();
     let timeout = args.timeout.get();
 
-    println!("Host   : {}", host);
-    println!("Threads: {}", threads);
-    println!(
+    eprintln!("Host   : {}", host);
+    eprintln!("Threads: {}", threads);
+    eprintln!(
         "Timeout: {}s",
         tokio::time::Duration::from_millis(timeout).as_secs_f32(),
     );
-    println!("Retries: {}", retries);
+    eprintln!("Retries: {}", retries);
 
     let host = Arc::new(host);
 
     let mut ports = stream::iter(ports)
         .map(move |mut port| {
             let host = host.clone();
-
             async move {
                 for _ in 1..=retries {
                     tokio::select! {
